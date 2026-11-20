@@ -46,12 +46,16 @@ frontend/dist-ssr/
 
 # Local Data, Docker Volumes & Uploads
 postgres_data/
-kafka_data/
-zookeeper_data/
 uploads/
 temp/
 *.sqlite
 *.db
+
+# Agent Instructions, Checkpoints & Internal Docs
+.agents/
+AGENTS.md
+CHECKPOINT.md
+docs/
 
 # OS & IDE
 .DS_Store
@@ -60,5 +64,3 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-
-./.agents
