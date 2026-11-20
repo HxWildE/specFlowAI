@@ -5,20 +5,16 @@
 
 ---
 
-## 2. Core Architecture & Tech Stack
+## 2. Core Architecture & Tech Stack (Pragmatic & Defensible)
 
 ```
    [ Client / React Frontend (Vite + Tailwind CSS) ]
                         |
-            HTTP Upload | SSE Stream (/api/documents/{id}/stream)
+            HTTP Upload | SSE Stream (/api/v1/documents/{id}/stream)
                         v
      [ FastAPI Async Gateway (asyncpg + SQLAlchemy 2.0) ]
                         |
-            Produce Event (document.uploaded)
-                        v
-     [ Apache Kafka Event Broker ] <---> [ Dead-Letter Queue (rfp.dlq) ]
-                        |
-            Consume Event
+            Direct Async Background Task (State-Machine Tracked)
                         v
     [ Python Multi-Agent AI Worker (LangGraph StateGraph) ]
         |---> requirements_extractor (Gemini 2.5 Flash Structured JSON)
@@ -34,8 +30,8 @@
 ### Component Stack
 * **Backend:** Python 3.12+, FastAPI (fully asynchronous), Pydantic v2 (strict JSON schemas), SQLAlchemy 2.0 (`asyncpg` driver).
 * **AI Orchestration:** LangGraph (`StateGraph` with typed state, parallel branch fan-out, conditional validation edges) + Google Gemini (`gemini-2.5-flash` with structured outputs via `response_schema`, `text-embedding-004`).
-* **Storage & Memory:** PostgreSQL 16 with `pgvector` extension (768-dim embeddings, HNSW indexing).
-* **Asynchronous Queue & Streaming:** Apache Kafka (Docker Compose) for decoupled event streams, Dead-Letter Queue (`rfp.dlq`), and Server-Sent Events (SSE) for frontend streaming.
+* **Storage & Memory:** PostgreSQL 16 with `pgvector` extension (single database for tables, metadata, and 768-dim embeddings with HNSW indexing).
+* **State Machine & Streaming:** Database-backed state progression (`PENDING` $\rightarrow$ `PARSING` $\rightarrow$ `EXTRACTING` $\rightarrow$ `AUDITING` $\rightarrow$ `ESTIMATING` $\rightarrow$ `COMPLETED` / `FAILED`) streamed to the frontend via Server-Sent Events (SSE).
 * **Frontend:** React + Vite + Tailwind CSS built under the OpenAI Frontend Skill philosophy (minimal chrome, memoized updates, high craft, no generic dashboard cards).
 
 ---
@@ -45,7 +41,7 @@
 * **Phase 0 (Setup & Environment):**
   - Install OpenAI Frontend Skill into `.agents/skills/frontend-skill/`
   - Connect Git remote repository and enforce `.gitignore`
-  - Monorepo directory structure & `docker-compose.yml` (Postgres + pgvector, Kafka)
+  - Monorepo directory structure & `docker-compose.yml` (Postgres 16 + pgvector)
 * **Phase 1 (Database, Async FastAPI & Ingestion):**
   - PostgreSQL 16 + `pgvector` Docker setup
   - SQLAlchemy async models (`workspaces`, `documents`, `knowledge_chunks`, `generated_specs`)
@@ -54,10 +50,10 @@
   - Typed state definition (`GraphState`)
   - 4 specialized nodes: `requirements_extractor`, `risk_auditor`, `effort_estimator`, `spec_compiler`
   - Parallel node execution and conditional self-critique/retry loop
-* **Phase 3 (pgvector RAG & Kafka Event Streaming):**
+* **Phase 3 (pgvector RAG & State-Machine Streaming):**
   - Agency knowledge base ingestion (historical projects + rate cards)
-  - Kafka producer on FastAPI upload $\rightarrow$ consumer in AI worker $\rightarrow$ DLQ on unrecoverable failure
-  - SSE endpoint (`/api/documents/{id}/stream`) for real-time state transitions
+  - Background processing pipeline with DB state tracking
+  - SSE endpoint (`/api/v1/documents/{id}/stream`) for real-time state transitions
 * **Phase 4 (Crafted Frontend & Production Polish):**
   - Minimal React split-view UI (Upload & Live Pipeline, SRS Editor, Knowledge Base)
   - Docx/Markdown export and interview-readiness system design documentation
